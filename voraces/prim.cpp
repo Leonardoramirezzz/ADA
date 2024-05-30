@@ -6,27 +6,21 @@
 
 using namespace std;
 
-struct Vertice;
-struct Arista;
-
 struct Vertice {
     int id;
-    vector<Arista> conexiones;
+    vector<pair<Vertice*, int>> conexiones;
 
     Vertice(int id) : id(id) {}
 };
 
-struct Arista {
-    Vertice* inicio;
-    Vertice* fin;
-    int costo;
-
-    Arista(Vertice* a, Vertice* b, int costo) : inicio(a), fin(b), costo(costo) {}
+struct CompareArista {
+    bool operator()(const pair<int, pair<Vertice*, Vertice*>>& a, const pair<int, pair<Vertice*, Vertice*>>& b) {
+        return a.first > b.first;
+    }
 };
 
 struct Grafo {
     vector<Vertice> vertices;
-    vector<Arista> aristas;
 
     Grafo(const vector<Vertice>& v) {
         for (const auto& vertice : v) {
@@ -35,29 +29,21 @@ struct Grafo {
     }
 
     void conectar(Vertice& a, Vertice& b, int costo) {
-        Arista arista(&a, &b, costo);
-        a.conexiones.push_back(arista);
-        b.conexiones.push_back(arista);
-        aristas.push_back(arista);
-    }
-};
-
-struct CompareArista {
-    bool operator()(Arista* a, Arista* b) {
-        return a->costo > b->costo;
+        a.conexiones.push_back({ &b, costo });
+        b.conexiones.push_back({ &a, costo });
     }
 };
 
 void prim(Grafo& grafo, Vertice& raiz) {
-    priority_queue<Arista*, vector<Arista*>, CompareArista> pq;
+    priority_queue<pair<int, pair<Vertice*, Vertice*>>, vector<pair<int, pair<Vertice*, Vertice*>>>, CompareArista> pq;
     vector<bool> visitado(grafo.vertices.size(), false);
-    vector<Arista*> mst;
+    vector<pair<int, pair<Vertice*, Vertice*>>> mst;
 
     auto agregarAristas = [&](Vertice& v) {
         visitado[v.id] = true;
-        for (auto& arista : v.conexiones) {
-            if (!visitado[arista.fin->id]) {
-                pq.push(&arista);
+        for (auto& conexion : v.conexiones) {
+            if (!visitado[conexion.first->id]) {
+                pq.push({ conexion.second, {&v, conexion.first} });
             }
         }
     };
@@ -65,18 +51,21 @@ void prim(Grafo& grafo, Vertice& raiz) {
     agregarAristas(raiz);
 
     while (!pq.empty() && mst.size() < grafo.vertices.size() - 1) {
-        Arista* menorArista = pq.top();
+        auto menorArista = pq.top();
         pq.pop();
 
-        if (visitado[menorArista->fin->id]) continue;
+        Vertice* v1 = menorArista.second.first;
+        Vertice* v2 = menorArista.second.second;
+
+        if (visitado[v2->id]) continue;
 
         mst.push_back(menorArista);
-        agregarAristas(*menorArista->fin);
+        agregarAristas(*v2);
     }
 
-    cout << "Aristas en el Árbol de Expansión Mínima (MST):" << endl;
+    cout << "Aristas del arbolito:" << endl;
     for (const auto& arista : mst) {
-        cout << arista->inicio->id << " - " << arista->fin->id << " : " << arista->costo << endl;
+        cout << arista.second.first->id << " - " << arista.second.second->id << " : " << arista.first << endl;
     }
 }
 
@@ -99,7 +88,7 @@ int main() {
     grafo.conectar(vertices[3], vertices[7], 4);
     grafo.conectar(vertices[4], vertices[5], 4);
     grafo.conectar(vertices[5], vertices[6], 9);
-    grafo.conectar(vertices[6], vertices[7], 9);
+    grafo.conectar(vertices[6], vertices[7], 7);
     grafo.conectar(vertices[7], vertices[8], 6);
 
     prim(grafo, vertices[0]);
